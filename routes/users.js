@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { createUser,deletUset ,getUsers,getUsersById,read,writeUser,update,deleteReq} from '../controllers/users.js';
+import { createUser ,getUsers,getUsersById,read,writeUser,update,deleteReq} from '../controllers/users.js';
 const router=express.Router();
 
 
@@ -20,7 +20,7 @@ router.get('/up/:email/:key/:val?/:key2?/:val2?',update);
 
 router.get('/delete/:email/:key/:val?/:key2?/:val2?',deleteReq);
 
-router.delete('/:id',deletUset);
+//router.delete('/:id',deletUset);
 
 
 
