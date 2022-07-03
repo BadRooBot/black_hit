@@ -96,7 +96,7 @@ export  const getUsersById=async (req,res)=>{//get one user by Id//جلب بيا
 export const deletUser=(req,res)=>{
     const {id}=req.params;
 
-    fs.unlink(`users/${id.toLocaleLowerCase()}`,(err)=>{
+    fs.unlink(`users/${id.toLocaleLowerCase()}.json`,(err)=>{
         if(err) throw err;
     res.status(200).send('Successfully deleted');
     });
