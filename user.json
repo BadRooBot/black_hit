@@ -1,0 +1,16 @@
+{  
+    "name": "Abo Sherif",
+    "email": "abosh3rif@gmail.com",
+    "profileImage": "www.cds.com",
+    "vip": true,
+    "online": false,
+    "points": 150,
+    "follows": ["1", "2", "3"],
+    "folloing": ["1", "2", "3"],
+    "requstGroup": [
+        {"userId": 2, "GroupId": 1, "requstId": 22}
+    ],
+    "admin": true,
+    "fortest":" by:AboSherif"
+    
+}
