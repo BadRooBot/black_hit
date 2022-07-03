@@ -90,18 +90,19 @@ export  const getUsersById=async (req,res)=>{//get one user by Id//جلب بيا
     res.send(fountUser);
    */
 };
-/*
-export const deletUset=(req,res)=>{
 
+
+
+export const deletUser=(req,res)=>{
     const {id}=req.params;
 
-    users=users.filter((user)=>user.id!=id);
-
-    res.send('User Is Deleted');
-
-   
+    fs.unlink(`users/${id.toLocaleLowerCase()}`,(err)=>{
+        if(err) throw err;
+    res.status(200).send('Successfully deleted');
+    });
+    
 };
-*/
+
 
 export const read =async(req,res)=>{//to login user 
    
