@@ -25,8 +25,44 @@ export const getUsers=async (req,res)=>{//get all Data in file users //users ج�
       
 };
 
+export const getCustomData=(req,res)=>{
+    var {email,FolderName}=req.body;
+    var hashemail=email.toLocaleLowerCase().trim();
+    var hashFolderName=FolderName.toLocaleLowerCase().trim();
+  
+    if(fs.existsSync(`customData/${hashFolderName}`)){
+        const fileNames = fs.readdirSync(`customData/${hashFolderName}`);
+    try{
+        let data=[];
+        if(email=='All'){
+      fileNames.forEach(async(txt) => {
+        var myData;
+           myData=  fs.readFileSync(`customData/${hashFolderName}/${txt}`, 'utf-8');
+           data.push(await JSON.parse(myData));
+            
+            if(fileNames[fileNames.length-1]==txt){
+               
+                res.send( JSON.stringify(data));
+            }
+        });
+    }else{
+        const readStreamData=fs.createReadStream(`customData/${hashFolderName}/${hashemail}.json`,'utf-8');
+        readStreamData.on('data',(chunk)=>{
+           
+        });
+        readStreamData.pipe(res);
+    }
+    }catch(error){
+        res.send(error );
+    }
+}else{
+res.status(500).send('Folder Not exists');
+}
+        
 
-export const createUser=(req,res)=>{//this create  user data from req body //انشاء مستخدم عن طريق الطلب كل المعلومات عن طريق جسم الطلب
+}
+
+export const createUser=async (req,res)=>{//this create  user data from req body //انشاء مستخدم عن طريق الطلب كل المعلومات عن طريق جسم الطلب
   
 //example http://localhost:5000/users/ ///مثال
 
@@ -34,25 +70,35 @@ export const createUser=(req,res)=>{//this create  user data from req body //ا�
 
 
 
-    var {email,KEY,FileName}=req.body;//all data in KEY//  jsonوتكون في صيغت kEYكل البيانات التي تريد حفظها قم بارسالها في
+    var {email,KEY,FolderName}=req.body;//all data in KEY//  jsonوتكون في صيغت kEYكل البيانات التي تريد حفظها قم بارسالها في
         var IsExisting=false;
         var hashemail=email.toLocaleLowerCase().trim();
-    const fileNames = fs.readdirSync(`${FileName.toLocaleLowerCase()}`);
-    fileNames.findIndex((txt,index)=>{
-        if(fileNames[index]==`${hashemail}.json`){
-            IsExisting=true;
-        }
-    });
-    if(IsExisting){
+       
+        const folderName=`customData/${FolderName.toLocaleLowerCase().trim()}`;
+    if(fs.existsSync(folderName)){
         res.send('The E-mail is already registered.');
-    }else{
-        const writeStreamData=fs.createWriteStream(`${FileName.toLocaleLowerCase()}/${hashemail}.json`);
-        writeStreamData.write( JSON.stringify(KEY), (err) => {
+        const fileNames = fs.readdirSync(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}`);
+        fileNames.findIndex((txt,index)=>{
+            if(fileNames[index]==`${hashemail}.json`){
+                IsExisting=true;
+            }
+        });
+    }else {
+        try {
+       await fs.mkdirSync(folderName);
+        }catch(e){
+            console.log(`=====================${e}`);
+        }        
+        if(IsExisting==false){//IsExisting==false
+      // const mDir=  await  fs.mkdir(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}.json`);
+        const writeStreamData=fs.createWriteStream(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}.json`);
+      await  writeStreamData.write(await JSON.stringify(KEY), (err) => {
             if (err) throw err;
             console.log("done writing....");
           });
 
-          res.status(200).send( JSON.stringify(KEY));
+          res.status(200).send( await JSON.stringify(KEY));
+        }
     }
     
 };
@@ -93,7 +139,7 @@ export  const getUsersById=async (req,res)=>{//get one user by Id//جلب بيا
 
 
 
-export const deletUser=(req,res)=>{
+export const deleteUser=(req,res)=>{
     const {id}=req.params;
 
     fs.unlink(`users/${id.toLocaleLowerCase()}.json`,(err)=>{
