@@ -34,10 +34,10 @@ export const createUser=(req,res)=>{//this create  user data from req body //ا�
 
 
 
-    var {email,KEY}=req.body;//all data in KEY//  jsonوتكون في صيغت kEYكل البيانات التي تريد حفظها قم بارسالها في
+    var {email,KEY,FileName}=req.body;//all data in KEY//  jsonوتكون في صيغت kEYكل البيانات التي تريد حفظها قم بارسالها في
         var IsExisting=false;
         var hashemail=email.toLocaleLowerCase().trim();
-    const fileNames = fs.readdirSync("users");
+    const fileNames = fs.readdirSync(`${FileName.toLocaleLowerCase()}`);
     fileNames.findIndex((txt,index)=>{
         if(fileNames[index]==`${hashemail}.json`){
             IsExisting=true;
@@ -46,7 +46,7 @@ export const createUser=(req,res)=>{//this create  user data from req body //ا�
     if(IsExisting){
         res.send('The E-mail is already registered.');
     }else{
-        const writeStreamData=fs.createWriteStream(`users/${hashemail}.json`);
+        const writeStreamData=fs.createWriteStream(`${FileName.toLocaleLowerCase()}/${hashemail}.json`);
         writeStreamData.write( JSON.stringify(KEY), (err) => {
             if (err) throw err;
             console.log("done writing....");
@@ -118,7 +118,7 @@ export const read =async(req,res)=>{//to login user
         if(testdb){
             await readStreamData.pipe(res);
         }else{
-            res.send('The user does not exist');
+            res.status(501).send('The user does not exist');
         }
        // const success=await bcrypt.compare(password,users[0].hashPassword);
        //res.status(200).json(map);
