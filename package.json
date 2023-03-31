@@ -1,7 +1,7 @@
 {
-  "name": "test_api",
+  "name": "Server_Black_Hit",
   "version": "1.0.0",
-  "description": "sddsd",
+  "description": " ",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -14,6 +14,8 @@
     "cors": "^2.8.5",
     "express": "^4.18.1",
     "nodemon": "^1.3.3",
+    "pg": "^8.9.0",
     "uuid": "^8.3.2"
   }
 }
+    

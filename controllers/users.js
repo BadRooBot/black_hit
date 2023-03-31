@@ -1,368 +1,919 @@
 
 import { v4 as uuidv4} from 'uuid';
 import fs from'fs';
+import  pkg  from'pg';
+const {Client} = pkg;
 
-let testdb;
+let testbadroobot;
 let chunkJson;
 
-export const getUsers=async (req,res)=>{//get all Data in file users //users جلب كل البيانات من ملف  
-   try{
-    let users=[];
-    const fileNames = fs.readdirSync("users");
-  fileNames.forEach(async(txt) => {
-    var myData;
-       myData=  fs.readFileSync(`users/${txt}`, 'utf-8');
-        users.push(await JSON.parse(myData));
-        
-        if(fileNames[fileNames.length-1]==txt){
-           
-            res.send( JSON.stringify(users));
+
+export const login=async (req,res)=>{
+   
+  const { email, password} = req.body;
+         const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+          try {
+            await client.connect();
+            const query = `SELECT * FROM users WHERE email = '${email}' AND password = '${password}'`;
+            const result = await client.query(query);
+            if (result.rows.length === 1) {
+             res.status(200).json(result.rows[0]);
+            } else {
+              res.status(500).end('Login failed');
+            }
+            //await client.status(500).end();
+          } catch (err) {
+            console.error(err);
+            res.status(500).end('Login failed');
+          }
         }
-    });
-}catch(error){
-    res.send(error );
-}
       
+    
+
+export const signup=async (req,res)=>{  
+    
+    const { username, password, email, image_url, gender, points } = req.body;
+    const userId=uuidv4();
+    const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+      client.connect();
+  const query = `
+    INSERT INTO users (username, password, email, image_url, gender, points,id)
+    VALUES ($1, $2, $3, $4, $5, $6,$7)
+    
+    RETURNING *;`;
+
+  const values = [username, password, email, image_url, gender, points,userId];
+  
+  client.query(query, values).then(result => {
+  add_data_to_chat_list_table(result.rows[0]['id']);
+    res.status(200).json(result.rows[0]);
+  }).catch(err => {
+    res.status(500).json({ error: err.message });
+  });
+
+  
 };
 
-export const getCustomData=(req,res)=>{
-    var {email,FolderName}=req.body;
-    var hashemail=email.toLocaleLowerCase().trim();
-    var hashFolderName=FolderName.toLocaleLowerCase().trim();
-  
-    if(fs.existsSync(`customData/${hashFolderName}`)){
-        const fileNames = fs.readdirSync(`customData/${hashFolderName}`);
-    try{
-        let data=[];
-        if(email=='All'){
-      fileNames.forEach(async(txt) => {
-        var myData;
-           myData=  fs.readFileSync(`customData/${hashFolderName}/${txt}`, 'utf-8');
-           data.push(await JSON.parse(myData));
-            
-            if(fileNames[fileNames.length-1]==txt){
-               
-                res.send( JSON.stringify(data));
-            }
-        });
-    }else{
-        const readStreamData=fs.createReadStream(`customData/${hashFolderName}/${hashemail}.json`,'utf-8');
-        readStreamData.on('data',(chunk)=>{
-           
-        });
-        readStreamData.pipe(res);
-    }
-    }catch(error){
-        res.send(error );
-    }
-}else{
-res.status(500).send('Folder Not exists');
+export const posts =(req,res)=>{  
+
+    const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+
+client.connect();
+
+const query1 = `
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  username VARCHAR(255) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  image_url TEXT,
+  Gender TEXT,
+  points INTEGER DEFAULT 0
+);
+`;
+
+client.query(query1, (err, result) => {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log('Table created successfully');
+  }
+});
+      
+      const query = `
+      CREATE TABLE posts (
+        post_id SERIAL PRIMARY KEY,
+        user_id TEXT REFERENCES users (id),
+        post_text TEXT,
+        post_image_url TEXT,
+        likes INTEGER,
+        dislike INTEGER,
+        comments jsonb
+      );
+      
+      ALTER TABLE posts ALTER COLUMN likes SET DEFAULT 0;
+      ALTER TABLE posts ALTER COLUMN dislike SET DEFAULT 0;
+      `;
+      
+      client.query(query).then(() => {
+        res.status(201).json({ message: 'Post added successfully' });
+      }).catch(err => {
+        res.status(500).json({ message: err.message });
+      });
 }
-        
 
-}
-
-export const createUser=async (req,res)=>{//this create  user data from req body //انشاء مستخدم عن طريق الطلب كل المعلومات عن طريق جسم الطلب
-  
-//example http://localhost:5000/users/ ///مثال
-
-//{"KEY":{"name":"SIA","email":"SIA@queen.com","password":"123456","id":"91bd0fef-da69-4dc8-b1ae-20e1957aec44","profileImage":"Queen","follwos":["Abo Sh3rif","Abo Sherif","badroobot","mesho","1"],"follwoing":["Abo Sh3rif","Abo Sherif","badroobot","mesho"],"requestGroup":[{"requestId":"4db9f9d4-b2e6-4815-b621-2e7cd0622b42","email":"queen@roobot.com","groupId":"5"},{"requestId":"d4aaccae-5074-4682-bfb0-28d238be0aa0","email":"queen@roobot.com","groupId":"2"},{"requestId":"572da8a6-2118-4b97-a632-f5ccadc8e6b3","email":"queen@roobot.com","groupId":"19"},{"requestId":"4758bacc-6248-4066-b0f3-13b443019dcc","email":"queen@roobot.com","groupId":"19"}],"points":0,"isVIP":false,"online":false},"email":"SIA@queen.com"}
+export const addPost = async (req, res) => {
+  const { user_id, post_text, post_image_url, likes, dislike, comments } = req.body;
 
 
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
 
-    var {email,KEY,FolderName}=req.body;//all data in KEY//  jsonوتكون في صيغت kEYكل البيانات التي تريد حفظها قم بارسالها في
-        var IsExisting=false;
-        var hashemail=email.toLocaleLowerCase().trim();
-       
-        const folderName=`customData/${FolderName.toLocaleLowerCase().trim()}`;
-    if(fs.existsSync(folderName)){
-        res.send('The E-mail is already registered.');
-        const fileNames = fs.readdirSync(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}`);
-        fileNames.findIndex((txt,index)=>{
-            if(fileNames[index]==`${hashemail}.json`){
-                IsExisting=true;
-            }
-        });
-    }else {
+  client.connect();
+
+  const query = `
+    INSERT INTO posts (user_id, post_text, post_image_url, likes, dislike, comments)
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `;
+
+  const values = [user_id, post_text, post_image_url, likes, dislike, JSON.stringify(comments)];
+
+  try {
+    await client.query(query, values);
+    res.status(200).json({ message: 'Post added successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to add post' });
+  } finally {
+    client.end();
+  }
+};
+
+
+  export const get_posts =async(req,res)=>{ 
+    const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+      client.connect();
+    const query = `
+    SELECT *
+    FROM posts
+  `;
+
+  client.query(query, (err, result) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      res.send(result.rows);
+    }
+  });
+};
+
+
+
+
+
+export const deleteUser=(req,res)=>{   
+    const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+      client.connect();
+
+      
+        const { user_id } = req.body; // assuming user_id is in the request body
+      
         try {
-       await fs.mkdirSync(folderName);
-        }catch(e){
-            console.log(`=====================${e}`);
-        }        
-        if(IsExisting==false){//IsExisting==false
-      // const mDir=  await  fs.mkdir(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}.json`);
-        const writeStreamData=fs.createWriteStream(`customData/${FolderName.toLocaleLowerCase().trim()}/${hashemail}.json`);
-      await  writeStreamData.write(await JSON.stringify(KEY), (err) => {
-            if (err) throw err;
-            console.log("done writing....");
-          });
-
-          res.status(200).send( await JSON.stringify(KEY));
-        }
-    }
-    
-};
-
-export  const getUsersById=async (req,res)=>{//get one user by Id//جلب بيانات مستخدم واحد عن طريق البريد الاكتروني وفي حالتي استخدمه كامعرف للمستخدم ID
-
-    const {id}=req.params;
-    var index=null;
-    var hashemail=id.toLocaleLowerCase().trim();
-    const fileNames = fs.readdirSync("users");
-    fileNames.findIndex((txt,x)=> {  
-        if(fileNames[x]==`${hashemail}.json`){
-            index=x;
-        }else{
+        
+           client.query('DELETE FROM users WHERE id = $1', [user_id]);
           
-        }
-    });
-
-    if(index!=null){       
-    const readStreamData=fs.createReadStream(`users/${hashemail}.json`,'utf-8');
-    readStreamData.on('data',(chunk)=>{
-       
-    });
-    readStreamData.pipe(res);
-    }else{
-        res.send('The user does not exist');
-    }
-    
-   // res.send(fileNames);
- /*   const fountUser=users.find((user)=>user.id==id);
-
-    if(fountUser==null){
-        res.send('No User For this Id');
-    }
-    res.send(fountUser);
-   */
-};
-
-
-
-export const deleteUser=(req,res)=>{
-    const {id}=req.params;
-
-    fs.unlink(`users/${id.toLocaleLowerCase()}.json`,(err)=>{
-        if(err) throw err;
-    res.status(200).send('Successfully deleted');
-    });
-    
-};
-
-
-export const read =async(req,res)=>{//to login user 
-   
-    try {
-        const {email,password}=req.body;
-        //var hashemail=email.toLocaleLowerCase().trim();
-        const readStreamData=fs.createReadStream(`users/${email}.json`);//users/${hashemail}
-        readStreamData.on('data', (chunkData) => {
-            testdb = chunkData.includes(`${password}`);
-            chunkJson = chunkData;
-
-        });
-        if(testdb){
-            await readStreamData.pipe(res);
-        }else{
-            res.status(501).send('The user does not exist');
-        }
-       // const success=await bcrypt.compare(password,users[0].hashPassword);
-       //res.status(200).json(map);
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:error});
-    }
-};
-
-let map = new Map();
-export const writeUser  =async (req,res)=>{   //to create New User or SignUp//لانشاء مستخدم جديد او انشاء حساب جديد +_+
-    try {
       
-        const {name,email,password,profileImage}=req.body;
-    
-        const userId=uuidv4();
-        const hashPassword=password;//await bcrypt.hash(password,10);
-        
-        var hashemail=email.toLocaleLowerCase().trim();
-        var IsExisting=false;
-       
-        const fileNames = fs.readdirSync("users");
-        fileNames.findIndex((txt,index)=>{
-            if(fileNames[index]==`${hashemail}.json`){
-                IsExisting=true;
-            }
-        });
-        if(IsExisting){
-            res.send('The E-mail is already registered.');
-        }else{
-        const writeStreamData=fs.createWriteStream(`users/${hashemail}.json`);
-        var listUserData={
-            "name":name,
-        "email":email,
-        "password":hashPassword,
-        "id":userId,
-        "profileImage":profileImage,
-        "follwos":['badRoOBoT'],
-        "follwoing":['badRoOBoT'],
-        "requestGroup":[{'requestId':'badRoOBoT','email':'b@b.b','groupId':'1'}],
-        "points":0,
-        "isVIP":false,
-        "online":false
-    };
-    writeStreamData.write( JSON.stringify(listUserData), (err) => {
-        if (err) throw err;
-        console.log("done writing....");
-      });res.status(200).json(listUserData);
-    /*
-        writeStreamData.write('{"name":'+'"'+`${name}`+'"');
-        writeStreamData.write(',"email":'+'"'+`${email}`+'"');
-        writeStreamData.write(',"password":'+'"'+`${password}`+'"');
-        writeStreamData.write(',"profileImage":'+'"'+`${profileImage}`+'"');
-        writeStreamData.write(',"id":'+'"'+`${userId}`+'"');
-        writeStreamData.write(',"points":'+`${0}`);
-        writeStreamData.write(',"isVIP":'+`${false}`+'}');
-        //writeStreamData.end('');*/
-        
-    }
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:error});
-    }
-
+          res.status(200).json({
+            message: `User with id ${user_id} has been deleted`,
+          });
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({
+            message: 'An error occurred while deleting the user',
+          });
+        }
+     
+   
+      
 };
 
 
 
-export const update  =async (req,res)=>{///لتحديث البيانات واجراء التعديلات عليها  //http://localhost:5000/users/up/queen@roobot.com/name/newName or http://localhost:5000/users/up/queen@roobot.com/addrequest/0/0/19 
-    try {
-       
-        var reqData=req.params;
-        var email=reqData.email;
-        var oldData=fs.readFileSync(`users/${email}.json`);
-        var stOldData=JSON.parse(oldData);
-        var key=reqData.key;
-        var val=reqData.val;
-        var key2=reqData.key2;
-        var val2=reqData.val2;
-        var oldFollwos=stOldData['follwos'];
-        var oldFollwoing=stOldData['follwoing'];
-        var oldRequestGroup=stOldData['requestGroup'];
-        switch(key){
-            case 'isVIP':
-                if(val=='true'){
-                stOldData[key]=true;
-                }else{
-                    stOldData[key]=false;
+export const getOneUser = async (req, res) => {
+  const { user_id } = req.body;
+
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  client.connect();
+  const query = `
+    SELECT *
+    FROM users WHERE id=${user_id}
+  `;
+try{
+client.query(query, (err, result) => {
+   /* if (err) {
+      res.status(500).send(err);
+    } else {*/
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.status(200).send(result.rows);
+   // }
+  });
+}catch{
+console.log("error");
+}
+  
+};
+
+
+export const getAllUser  =async (req,res)=>{ 
+  const {user_id} = req.body;
+
+  const client = new Client({
+    user: 'badroobot',
+    host:"badroobot.postgres.database.azure.com",
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+});
+    client.connect();
+  const query = `
+  SELECT *
+  FROM users 
+`;
+
+client.query(query, (err, result) => {
+  if (err) {
+    res.status(500).send(err);
+  } else {
+    res.send(result.rows);
+  }
+});
+};
+
+
+
+export const update_user_name  =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_username} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET username = $1 WHERE id = $2',
+    values: [new_username, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`Username updated for user with ID ${user_id}`);
+      res.status(200).send(`Username updated for user ID= ${user_id} and new name is ${new_username} and result=${result.rows}`);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+
+export const update_user_password  =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_password} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET password = $1 WHERE id = $2',
+    values: [new_password, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`password updated for user with ID ${user_id}`);
+      res.status(200).send(`password updated for user ID= ${user_id} and new password is ${new_password} `);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+
+export const update_user_email  =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_email} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET email = $1 WHERE id = $2',
+    values: [new_email, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`email updated for user with ID ${user_id}`);
+      res.status(200).send(`email updated for user ID= ${user_id} and new email is ${new_email} `);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+
+export const update_user_image_url  =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_image_url} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET image_url = $1 WHERE id = $2',
+    values: [new_image_url, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`image_url updated for user with ID ${user_id}`);
+      res.status(200).send(`image_url updated for user ID= ${user_id} and new image_url is ${new_image_url} `);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+export const update_user_gender =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_gender} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET gender = $1 WHERE id = $2',
+    values: [new_gender, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`gender updated for user with ID ${user_id}`);
+      res.status(200).send(`gender updated for user ID= ${user_id} and new gender is ${new_gender} `);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+
+export const update_user_points =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id ,new_points} = req.body;
+  
+  const query = {
+    text: 'UPDATE users SET points = $1 WHERE id = $2',
+    values: [new_points, user_id],
+  };
+  
+  client.query(query, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send(err);
+    } else {
+      console.log(`points updated for user with ID ${user_id}`);
+      res.status(200).send(`${new_points}`);
+      // Handle the success here
+    }
+    client.end();
+  });
+};
+
+
+
+export const get_my_posts =async(req,res)=>{
+    const {user_id} = req.body;
+
+    const client = new Client({
+      user: 'badroobot',
+      host:"badroobot.postgres.database.azure.com",
+      database: 'badroobot',
+      password: 'Anakillmesho9',
+      ssl: true,
+      port: 5432,
+});
+      client.connect();
+    const query = `
+    SELECT *
+    FROM posts WHERE user_id=${user_id}
+  `;
+
+  client.query(query, (err, result) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      res.send(result.rows);
+    }
+  });
+};
+
+export const add_comment = async (req, res) => {
+    const { post_id, comment_id, user_id, comment_text, comment_image } = req.body;
+
+    const client = new Client({
+        user: 'badroobot',
+        host:"badroobot.postgres.database.azure.com",
+        database: 'badroobot',
+        password: 'Anakillmesho9',
+        port: 5432,
+    });
+    client.connect();
+    const query = `
+        SELECT *
+        FROM posts
+        WHERE post_id = ${post_id}
+    `;
+
+    client.query(query, (err, result) => {
+        if (err) {
+            res.status(500).send(err);
+        } else {
+            let comments = result.rows[0]["comments"];
+            //comments = comments ? JSON.parse(comments) : [];
+            comments.push({ comment_id, user_id, comment_text, comment_image });
+            comments = JSON.stringify(comments);
+
+            const query2 = `
+                UPDATE posts
+                SET comments = '${comments}'
+                WHERE post_id = ${post_id};
+            `;
+
+            client.query(query2, (err, result) => {
+                if (err) {
+                    res.status(500).send(err + " " + result);
+                } else {
+                    res.send({ message: 'Comment added successfully' });
                 }
-                break;
-            case 'online':
-                if(val=='true'){
-                  stOldData[key]=true;
-                 }else{
-                      stOldData[key]=false;
-                   }
-                break;
-            case 'points':
-                stOldData[key]=Number(val);
-                break;    
-            case 'follwoing':
-                 oldFollwoing.push(val);
-                 stOldData[key]=oldFollwoing;
-                 break; 
-            case 'follwos':
-                oldFollwos.push(val);
-                stOldData[key]=oldFollwos;
-                  break;  
-            case 'requestGroup':
-                var ewe;
-                oldRequestGroup.findIndex((e,index)=>{
-                    if(oldRequestGroup[index][key2]!=null)
-                    {
-                    if(oldRequestGroup[index][key2]==val){
-                        if(val2=='Delete'){
-                            oldRequestGroup.splice(index);//to delete item form list//لحذف عنرص من القائمه
-                        }else{
-                            ewe=oldRequestGroup[index][key2]=val2//to edit item from list//لتعديل علي عنصر من عناصر القائمه
-                        }
-                
-                       }             
-                    }                         
-                });
-                //var ewe=oldRequestGroup[0][key2]=val2
-                var eweewe=[];
-                oldRequestGroup.join(ewe);
-                stOldData[key]=oldRequestGroup;//لضافه التغير للملف الاصلي// add to original file
-                   break;    
-            case 'addrequest'://اضافه عنصر جديد
-                 var newRequestGroup={
-                    "requestId":uuidv4(),"email":email,"groupId":val2
-                };
-                oldRequestGroup.push(newRequestGroup);
-                stOldData['requestGroup']=oldRequestGroup;
-                  break; 
-             default :
-                 stOldData[key]=val;
+            });
         }
-        
-        
-        var jsonData=JSON.stringify(stOldData);
-        fs.writeFile(`users/${email}.json`,jsonData,finish);
-        function finish (e){
-
-
-            res.send(stOldData);
-        }
-
-        
-      
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:error});
-    }
-
+    });
 };
 
 
-export const deleteReq =async(req,res)=>{// to delet list 
+export const get_message =async(req,res)=>{
+  const {chat_id,to} = req.body;
+
+  const client = new Client({
+    user: 'badroobot',
+    host:"badroobot.postgres.database.azure.com",
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+});
+    client.connect();
+  const query = `
+  SELECT * FROM chat_${chat_id} WHERE from_user ='${to}' OR to_user = '${to}';
+`;
+
+client.query(query, (err, result) => {
+  if (err) {
+    res.status(500).send(err);
+  } else {
+    res.status(200).send(result.rows);
+  }
+});
+};
+
+/**<script src="https://code.responsivevoice.org/responsivevoice.js?key=YWKR83mb"></script> */
+
+
+export const make_chat_table_and_send_message =async (req,res)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  const { user_id,to,from,message,image_url,video_url,time } = req.body;
+  
+  const createTableQuery = `
+  CREATE TABLE IF NOT EXISTS chat_${user_id} (
+    to_user TEXT NOT NULL,
+    from_user TEXT NOT NULL,
+    message TEXT,
+    image_url TEXT,
+    video_url TEXT,
+    message_id  SERIAL PRIMARY KEY,
+    time TIMESTAMP DEFAULT NOW(),
+    is_seen BOOLEAN DEFAULT FALSE
+  )
+`;
+
+ client.query(createTableQuery, (err, Query_res) => {
+  if (err) {
+    res.send(err);
+  } else {
+   send_message(res,user_id,to,from,message,image_url,video_url,time);
+   make_chat_list_table_and_add_id_to_list(user_id,to);
+  }
+  client.end();
+});
+}
+
+
+
+const send_message=(result_server,chat_id,to,from,message,image_url,video_url,time)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect()
+  .then(() => console.log('Connected to the database!'))
+  .then(() => {
+    // Insert data into chat_1 table
+    const query = {
+    text: `INSERT INTO chat_${chat_id} (to_user, from_user, message, image_url, video_url, "time", "is_seen") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      values: [to, from, message, image_url,video_url , time, false],
+    };
+
+    return client.query(query);
+  })
+  .then(() => {
+    // Retrieve data from chat_1 table
+    const query = {
+      text: `SELECT * FROM chat_${chat_id} WHERE from_user ='${to}' OR to_user = '${to}';   `,
+
+    };
+
+    return client.query(query);
+  })
+  .then(result => {
+    console.log('Result:', result.rows);
+    result_server.send(result.rows);
+    return result.rows;
+  })
+  .catch(error => console.error('Error:', error))
+  .finally(() => client.end());
+
+
+  
+}
+export const update_message_isSeen = async (req, res) => {
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+
+  try {
+    await client.connect();
+
+    const { user_id, is_seen, messageID } = req.body;
+
+    const query = {
+      text: 'UPDATE chat_$1 SET is_seen = $2 WHERE message_id = $3',
+      values: [user_id, is_seen, messageID],
+    };
+
+    await client.query(query);
+
+    res.status(200).send('B A D R O O B O T');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err);
+  } finally {
+    await client.end();
+  }
+};
+
+export const delete_message = async (req, res) => {
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+
+  try {
+    await client.connect();
+
+    const { messageID, chat_id } = req.body;
+
+    await client.query('DELETE FROM chat_$2 WHERE message_id = $1', [
+      messageID,
+      chat_id,
+    ]);
+
+    res.status(200).json({
+      message: `message with id ${messageID} has been deleted`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: 'An error occurred while deleting the message',
+    });
+  } finally {
+    await client.end();
+  }
+};
+
+ const make_chat_list_table_and_add_id_to_list = (user_id,to)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  
+  
+  
+  const createTableQuery = `
+  CREATE TABLE IF NOT EXISTS chat_list (
+    chat_list_for_user TEXT NOT NULL,
+    list_chats JSONB,
+    chat_list_id  SERIAL PRIMARY KEY
+    
+  );
+`;
+
+ client.query(createTableQuery, (err, Query_res) => {
+  if (err) {
+    console.log(err);
+  } else {
+    add_id_to_list_chat(user_id,to);
+    console.log(Query_res.rows);
    
-    try {
-        var reqData=req.params;
-        var email=reqData.email;
-        var oldData= fs.readFileSync(`users/${email}.json`);
-        var stOldData=JSON.parse(oldData);
-        var key=reqData.key;
-        var val=reqData.val;
-        var key2=reqData.key2;
-        var val2=reqData.val2;
-        var oldRequestGroup=stOldData['requestGroup'];
-        switch(key){
-           case'requestGroup':
-           
-           var ewe;
-           oldRequestGroup.findIndex((e,index)=>{
-               if(oldRequestGroup[index][key2]==val){
+  }
+  client.end();
+});
+}
 
-                if(val2=='Delete'){
-                       oldRequestGroup.splice(index);
-                }                  
-                  }                                      
-           });
-           //var ewe=oldRequestGroup[0][key2]=val2
-           
-           
-           oldRequestGroup.join(ewe);
-           stOldData=oldRequestGroup;
-              break;   
-        }
-        var jsonData=JSON.stringify(stOldData);
-        fs.writeFile(`users/${email}.json`,jsonData,finish);
-        function finish (e){
-            res.send(stOldData);
-        }
+const add_id_to_list_chat=(user_id,to_user)=>{
+  const client = new Client({
+    user: 'badroobot',
+    host: 'badroobot.postgres.database.azure.com',
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+  });
+  
+  client.connect();
+  const query = `
+  SELECT *
+        FROM chat_list
+        WHERE chat_list_for_user = '${user_id}'
+`;
 
-        
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({message:error});
+client.query(query, (err, result) => {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log(result.rows);
+    let all_chat_list=[{}];
+    
+    const new_chat_list_id= {"id":`${to_user}`};
+    
+    if(result.rowCount!=0){
+      console.log(result.rows[0]["list_chats"]);
+       all_chat_list = result.rows[0]["list_chats"];
+       const tOrF=all_chat_list.some(item => item.id === new_chat_list_id.id);
+       console.log(tOrF);
+       if(!tOrF){
+        all_chat_list.push(new_chat_list_id);
+       }
+       
+       
+       all_chat_list = JSON.stringify(all_chat_list);
+    }else{
+      all_chat_list=JSON.stringify([{"id":`${to_user}`}])
+      console.log("ELSE");
     }
+    
+            //all_chat_list = all_chat_list ? JSON.parse(all_chat_list) : [];
+           
+
+            
+           /* const query2 = {
+              text: `INSERT INTO chat_list (list_chats, chat_list_for_user) VALUES ($1, $2);`,
+              values: [all_chat_list, user_id],
+            };
+            */
+            const query2 = {
+              text: 'UPDATE chat_list SET list_chats = $1 WHERE chat_list_for_user = $2',
+              values: [ all_chat_list,user_id],
+            };
+            client.query(query2, (err, result) => {
+                if (err) {
+                    console.log(err + " " + result);
+                } else {
+                  console.log({ message: 'list_chats added successfully' });
+                }
+            });
+        }
+    });
+};
+
+
+export const delete_list=(req,res)=>{   
+  const client = new Client({
+    user: 'badroobot',
+    host:"badroobot.postgres.database.azure.com",
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+});
+    client.connect();
+
+    
+      const { chat_id} = req.body; // assuming messageID is in the request body
+    
+      try {
+      
+         client.query('DELETE FROM chat_list WHERE chat_list_id = $1', [chat_id]);
+        
+    
+        res.status(200).json({
+          message: `message with id ${chat_id} has been deleted`,
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({
+          message: 'An error occurred while deleting the message',
+        });
+      }
+   
+ 
+    
+};
+
+
+export const add_data_to_chat_list_table =async(uID)=>{
+ 
+  
+  const client = new Client({
+    user: 'badroobot',
+    host:"badroobot.postgres.database.azure.com",
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+});
+    client.connect();
+   const all_chat_list=JSON.stringify([{"id":`${uID}`}])
+    const query = {
+      text: `INSERT INTO chat_list (list_chats, chat_list_for_user) VALUES ($1, $2);`,
+      values: [all_chat_list,uID],
+    };
+
+client.query(query, (err, result) => {
+  if (err) {
+    console.log(err);
+  } else {
+  
+    console.log("done");
+     //res.status(200).send(result.rows);
+      //all_chat_list = all_chat_list ? JSON.parse(all_chat_list) : [];
+  } 
+  });
+};
+
+
+export const for_test =async(req,res)=>{
+ 
+  
+  const client = new Client({
+    user: 'badroobot',
+    host:"badroobot.postgres.database.azure.com",
+    database: 'badroobot',
+    password: 'Anakillmesho9',
+    ssl: true,
+    port: 5432,
+});
+    client.connect();
+  const query = `
+  SELECT *
+        FROM chat_list
+        
+`;
+
+client.query(query, (err, result) => {
+  if (err) {
+    console.log(err);
+  } else {
+  
+   
+     res.status(200).send(result.rows);
+      //all_chat_list = all_chat_list ? JSON.parse(all_chat_list) : [];
+  } 
+  });
 };

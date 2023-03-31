@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Translation</title>
+  <link href="https://vjs.zencdn.net/7.16.1/video-js.css" rel="stylesheet" />
+  <script src="https://vjs.zencdn.net/7.16.1/video.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@google-cloud/speech@2.12.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@google-cloud/translate@5.5.0"></script>
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=YWKR83mb"></script>
+</head>
+<body>
+  <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" width="640" height="360">
+    <source src="video.mp4" type='video/mp4'>
+  </video>
+  <div>
+    <button onclick="translateVideo()">Translate Video</button>
+  </div>
+  <script>
+    const videoPlayer = videojs('videoPlayer');
+    const speechClient = new speech.SpeechClient();
+    const translateClient = new translate.TranslateServiceClient();
+    let audioPlaying = false;
+    let audioPlayer;
+    let audioDuration;
+    let translatedText = '';
+    
+    function translateVideo() {
+      const language = prompt('Enter target language code (e.g. es for Spanish):');
+      if (!language) {
+        return;
+      }
+
+      const audioEl = document.createElement('audio');
+      audioPlayer = audioEl;
+      audioPlayer.controls = false;
+      audioPlayer.autoplay = false;
+      audioPlayer.style.display = 'none';
+      document.body.appendChild(audioPlayer);
+
+      const trackEl = document.createElement('track');
+      trackEl.kind = 'captions';
+      trackEl.label = language.toUpperCase() + ' Subtitles';
+      trackEl.srclang = language;
+      trackEl.default = true;
+      videoPlayer.textTracks[0].mode = 'hidden';
+      videoPlayer.appendChild(trackEl);
+
+      const recognizeConfig = {
+        encoding: 'LINEAR16',
+        languageCode: 'en-US',
+        sampleRateHertz: 44100,
+      };
+      const request = {
+        config: recognizeConfig,
+        interimResults: false,
+      };
+      const audioChunks = [];
+      const stream = navigator.mediaDevices.getUserMedia({audio: true});
+      stream.then((micStream) => {
+        const micAudio = new Audio();
+        micAudio.srcObject = micStream;
+        const micSource = audioContext.createMediaStreamSource(micStream);
+        const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+        micSource.connect(scriptProcessor);
+        scriptProcessor.connect(audioContext.destination);
+        scriptProcessor.onaudioprocess = function(event) {
+          const audioData = event.inputBuffer.getChannelData(0);
+          audioChunks.push(new Int16Array(audioData.buffer));
+        };
+        setTimeout(function() {
+          micAudio.play();
+          const stopCallback = function() {
+            stream.getTracks().forEach(function(track) {
+              track.stop();
+            });
+            scriptProcessor.disconnect();
+            const audioBlob = new Blob(audioChunks, {type: 'audio/wav'});
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = async function() {
+              const base64data = reader.result.split(',')[1];
+              const audioBytes = Uint8Array.from(atob(base64data), c => c
