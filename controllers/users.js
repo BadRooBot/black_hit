@@ -900,11 +900,14 @@ export const for_test =async(req,res)=>{
     port: 5432,
 });
     client.connect();
-  const query = `
-  SELECT *
-        FROM chat_list
-        
-`;
+  const query =`
+  CREATE TABLE IF NOT EXISTS chat_list (
+    chat_list_for_user TEXT NOT NULL,
+    list_chats JSONB,
+    chat_list_id  SERIAL PRIMARY KEY
+    
+  );
+`;;
 
 client.query(query, (err, result) => {
   if (err) {
