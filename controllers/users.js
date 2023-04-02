@@ -238,12 +238,12 @@ export const getOneUser = async (req, res) => {
   `;
 try{
 client.query(query, (err, result) => {
-   /* if (err) {
+    if (err) {
       res.status(500).send(err);
-    } else {*/
+    } else {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.status(200).send(result.rows);
-   // }
+    }
   });
 }catch{
 console.log("error");
