@@ -219,7 +219,6 @@ export const deleteUser=(req,res)=>{
 };
 
 
-
 export const getOneUser = async (req, res) => {
   const { user_id } = req.body;
 
@@ -231,24 +230,25 @@ export const getOneUser = async (req, res) => {
     ssl: true,
     port: 5432,
   });
-  client.connect();
-  const query = `
-    SELECT *
-    FROM users WHERE id=${user_id}
-  `;
-try{
-client.query(query, (err, result) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*').status(200).send(result.rows);
-      
-   }
-  });
-}catch{
-console.log("error");
-}
   
+  try {
+    await client.connect();
+    const query = `
+      SELECT *
+      FROM users WHERE id=$1
+    `;
+    client.query(query, [user_id], (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+        console.error(err);
+      } else {
+        res.status(200).send(result.rows);
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send(error);
+  } 
 };
 
 
