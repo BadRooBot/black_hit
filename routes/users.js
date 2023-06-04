@@ -42,12 +42,6 @@ export default router;
 
 
 
-
-
-
-
-
-
 /*
 
 {"name":`${name}`,"email":`${email}`,
